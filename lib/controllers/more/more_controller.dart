@@ -9,6 +9,9 @@ import '../../data/fireStoreDB/more/moreFireStoreService.dart';
 import '../../resources/route/routes_names.dart';
 import '../../services/notifiction_service.dart';
 import '../../user_prefernce/userPrefrence.dart';
+import '../history/history_controller.dart';
+import '../mainBikeCOntrollre/mainBike_Controllre.dart';
+import '../schedule/schedule_controller.dart';
 
 
 
@@ -26,6 +29,7 @@ class MoreController extends GetxController {
   var currentLanguage = 'en'.obs;
   var currency = 'PKR - Rs.'.obs;
   var petrolPrice = 272.5.obs;
+
 
   var notificationsEnabled = true.obs;
   var warnDays = 7.obs;
@@ -169,6 +173,14 @@ class MoreController extends GetxController {
   Future<void> logout() async {
     await _auth.signOut();
     await UserPreference.clearUserData();
+
+    // 2. Kill all permanent controllers so they reset for the next login!
+    Get.delete<MainBikesController>(force: true);
+    Get.delete<HistoryController>(force: true);
+    Get.delete<ScheduleController>(force: true);
+    Get.delete<MoreController>(force: true);
+
     Get.offAllNamed(RoutesNames.loginScreen);
+
   }
 }

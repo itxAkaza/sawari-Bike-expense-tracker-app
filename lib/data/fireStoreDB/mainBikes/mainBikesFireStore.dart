@@ -8,7 +8,6 @@ class MainBikesFirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Returns a continuous stream of all bikes mapped directly to BikeModel
   Stream<List<BikeModel>> getUserBikesStream() {
     final user = _auth.currentUser;
     if (user == null) {
@@ -18,12 +17,22 @@ class MainBikesFirestoreService {
     return _firestore
         .collection('bikes')
         .where('userId', isEqualTo: user.uid)
-        .orderBy('createdAt', descending: true)
+    // REMOVED .orderBy('createdAt') to fix the Firebase Index crash!
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+
+      var bikes = snapshot.docs.map((doc) {
         return BikeModel.fromMap(doc.data(), doc.id);
       }).toList();
+
+      // SORT LOCALLY IN DART: Newest first
+      bikes.sort((a, b) {
+        final dateA = a.createdAt ?? DateTime.now();
+        final dateB = b.createdAt ?? DateTime.now();
+        return dateB.compareTo(dateA);
+      });
+
+      return bikes;
     });
   }
 }

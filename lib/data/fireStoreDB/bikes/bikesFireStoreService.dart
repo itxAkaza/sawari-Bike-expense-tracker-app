@@ -14,7 +14,7 @@ class BikeFirestoreService {
 
     // Attach the auto-generated ID and the user's UID to the payload
     bikeData['bikeId'] = docRef.id;
-    bikeData['userId'] = user.uid;
+
 
     await docRef.set(bikeData);
   }

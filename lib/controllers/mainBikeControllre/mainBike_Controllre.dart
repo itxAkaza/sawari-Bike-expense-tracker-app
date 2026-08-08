@@ -6,9 +6,6 @@ import '../../Utiles/utiles.dart';
 import '../../data/fireStoreDB/mainBikes/mainBikesFireStore.dart';
 import '../../models/bike_model.dart';
 
-// import 'main_bikes_firestore_service.dart';
-// import 'bike_model.dart';
-// import '../../Utiles/utiles.dart';
 
 class MainBikesController extends GetxController {
   final MainBikesFirestoreService _dbService = MainBikesFirestoreService();

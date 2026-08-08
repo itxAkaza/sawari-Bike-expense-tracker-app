@@ -6,6 +6,8 @@ class BikeModel {
   final String brand;
   final String model;
   final String nickname;
+  final String registration; // <-- Added
+  final String year;         // <-- Added
   final double currentOdometer;
   final double firstOdometer;
   final String imageUrl;
@@ -13,7 +15,7 @@ class BikeModel {
   final double totalMaintenanceSpend;
   final double totalRepairSpend;
   final double totalLiters;
-  final DateTime? createdAt; // Nullable in case it's reading while server timestamp is pending
+  final DateTime? createdAt;
 
   BikeModel({
     required this.bikeId,
@@ -21,6 +23,8 @@ class BikeModel {
     required this.brand,
     required this.model,
     required this.nickname,
+    required this.registration, // <-- Added
+    required this.year,         // <-- Added
     required this.currentOdometer,
     required this.firstOdometer,
     required this.imageUrl,
@@ -38,6 +42,8 @@ class BikeModel {
       brand: map['brand'] ?? '',
       model: map['model'] ?? '',
       nickname: map['nickname'] ?? '',
+      registration: map['registration'] ?? '', // <-- Added
+      year: map['year'] ?? '',                 // <-- Added
       currentOdometer: (map['currentOdometer'] ?? 0).toDouble(),
       firstOdometer: (map['firstOdometer'] ?? 0).toDouble(),
       imageUrl: map['imageUrl'] ?? '',
@@ -55,6 +61,8 @@ class BikeModel {
       'brand': brand,
       'model': model,
       'nickname': nickname,
+      'registration': registration, // <-- Added
+      'year': year,                 // <-- Added
       'currentOdometer': currentOdometer,
       'firstOdometer': firstOdometer,
       'imageUrl': imageUrl,
@@ -62,7 +70,6 @@ class BikeModel {
       'totalMaintenanceSpend': totalMaintenanceSpend,
       'totalRepairSpend': totalRepairSpend,
       'totalLiters': totalLiters,
-      // createdAt is typically handled by FieldValue.serverTimestamp() during creation
     };
   }
 }

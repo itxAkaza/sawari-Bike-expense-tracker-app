@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../controllers/mainBikeCOntrollre/mainBike_Controllre.dart';
+import '../../models/bike_model.dart';
+import '../../resources/assets/image_assets.dart';
 import 'AddBike/addBikeScreen.dart';
 import 'bikeDetail/bikeDetailScreen.dart';
+
+// import '../../controllers/mainBikeCOntrollre/mainBike_Controllre.dart';
+// import '../../resources/assets/image_assets.dart';
+// import 'AddBike/addBikeScreen.dart';
+// import 'bikeDetail/bikeDetailScreen.dart';
+// import 'bike_model.dart';
 
 class BikesScreen extends StatelessWidget {
   const BikesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Keep main controller alive to listen to stream continuously
-    final controller = Get.put(MainBikesController(), permanent: true);
+    // Find the permanent controller (do not use .put here!)
+    final controller = Get.find<MainBikesController>();
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -37,38 +45,38 @@ class BikesScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top helper text
-              if (controller.allBikes.isNotEmpty)
+              if (controller.bikes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
                   child: Text(
-                    'Select your active bike:',
+                    'select_active_bike'.tr,
                     style: TextStyle(color: theme.hintColor, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
 
               Expanded(
                 child: ListView.builder(
-                  itemCount: controller.allBikes.length,
+                  itemCount: controller.bikes.length,
                   itemBuilder: (context, index) {
-                    final bike = controller.allBikes[index];
-                    final isActive = bike['bikeId'] == controller.activeBikeId.value;
+                    final BikeModel bike = controller.bikes[index];
 
-                    return _BikeCard(
-                      bike: bike,
-                      isActive: isActive,
-                      theme: theme,
-                      // 1. Tapping the card sets the active bike globally
-                      onCardTap: () {
-                        controller.setAsActiveBike(bike['bikeId']);
-                      },
-                      // 2. Tapping Details sets it active AND explicitly passes data via arguments
-                      onDetailsTap: () {
-                        controller.setAsActiveBike(bike['bikeId']);
+                    // Wrap EACH card in an Obx so it listens to selection changes instantly
+                    return Obx(() {
+                      final isActive = bike.bikeId == controller.selectedBikeId.value;
 
-                        // Pass exact bike data as an argument to avoid mapping errors
-                        Get.to(() => const BikeDetailScreen(), arguments: bike);
-                      },
-                    );
+                      return _BikeCard(
+                        bike: bike,
+                        isActive: isActive,
+                        theme: theme,
+                        onCardTap: () {
+                          controller.setAsActiveBike(bike.bikeId);
+                        },
+                        onDetailsTap: () {
+                          controller.setAsActiveBike(bike.bikeId);
+                          Get.to(() => const BikeDetailScreen());
+                        },
+                      );
+                    });
                   },
                 ),
               ),
@@ -107,7 +115,7 @@ class BikesScreen extends StatelessWidget {
 
 // --- Internal Component: Bike Card ---
 class _BikeCard extends StatelessWidget {
-  final Map<String, dynamic> bike;
+  final BikeModel bike;
   final bool isActive;
   final ThemeData theme;
   final VoidCallback onCardTap;
@@ -123,26 +131,29 @@ class _BikeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isActive ? theme.primaryColor : theme.dividerColor.withOpacity(0.3),
-          width: isActive ? 2.0 : 1.0,
+    // Live Calculations
+    double distance = bike.currentOdometer - bike.firstOdometer;
+    double kml = bike.totalLiters > 0 ? (distance / bike.totalLiters) : 0.0;
+
+    return GestureDetector(
+      onTap: onCardTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? theme.primaryColor : theme.dividerColor.withOpacity(0.3),
+            width: isActive ? 2.0 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
+          ],
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        children: [
-          // Top Section: The whole row is tappable to set active
-          InkWell(
-            onTap: onCardTap,
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-            child: Padding(
+        child: Column(
+          children: [
+            // Top Section (Identity)
+            Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
@@ -152,13 +163,13 @@ class _BikeCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: theme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      image: bike['imageUrl'] != ''
-                          ? DecorationImage(image: NetworkImage(bike['imageUrl']), fit: BoxFit.cover)
-                          : null,
+                      image: DecorationImage(
+                        image: bike.imageUrl.isNotEmpty
+                            ? NetworkImage(bike.imageUrl) as ImageProvider
+                            : const AssetImage(ImageAssets.bikeCard),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    child: bike['imageUrl'] == ''
-                        ? Icon(Icons.two_wheeler, color: theme.primaryColor)
-                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -166,14 +177,14 @@ class _BikeCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "${bike['nickname']} - ${bike['brand']} ${bike['model']}",
+                          "${bike.nickname} - ${bike.brand} ${bike.model}",
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "${bike['registration']} • ${bike['year']}",
+                          "${bike.registration} • ${bike.year}",
                           style: TextStyle(color: theme.hintColor, fontSize: 12),
                         ),
                       ],
@@ -181,6 +192,7 @@ class _BikeCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
 
+                  // Active Badge
                   isActive
                       ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -193,45 +205,35 @@ class _BikeCard extends StatelessWidget {
                       style: TextStyle(color: theme.primaryColor, fontSize: 10, fontWeight: FontWeight.w900),
                     ),
                   )
-                      : Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      border: Border.all(color: theme.dividerColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Select',
-                      style: TextStyle(color: theme.hintColor, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                      : const SizedBox(), // Hidden if not active, user just taps the card
                 ],
               ),
             ),
-          ),
 
-          const Divider(height: 1, thickness: 1),
+            const Divider(height: 1, thickness: 1),
 
-          // Bottom Section: Details Button
-          InkWell(
-            onTap: onDetailsTap,
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-            child: Padding(
+            // Bottom Section (Stats & View Details Button)
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStatColumn("${bike['currentOdometer']}", "km odo", theme),
+                  _buildStatColumn("${bike.currentOdometer.toInt()}", "km odo", theme),
+                  _buildStatColumn(kml.toStringAsFixed(1), 'kml_average'.tr, theme, isHighlight: true),
 
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                  // Elevated Button isolates its own tap gesture away from the card's GestureDetector
+                  ElevatedButton(
+                    onPressed: onDetailsTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor.withOpacity(0.1),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("View Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.primaryColor)),
+                        Text('view_details'.tr, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.primaryColor)),
                         const SizedBox(width: 6),
                         Icon(Icons.arrow_forward, size: 16, color: theme.primaryColor),
                       ],
@@ -240,17 +242,24 @@ class _BikeCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String value, String label, ThemeData theme) {
+  Widget _buildStatColumn(String value, String label, ThemeData theme, {bool isHighlight = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+              color: isHighlight ? theme.primaryColor : theme.textTheme.bodyLarge?.color,
+            )
+        ),
         Text(label, style: TextStyle(color: theme.hintColor, fontSize: 11)),
       ],
     );

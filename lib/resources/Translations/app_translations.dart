@@ -121,6 +121,8 @@ class AppTranslations extends Translations {
       'err_history_stream': 'Could not load history. Please check your connection.',
       'err_schedule_stream': 'Could not load schedules. Please check your connection.',
 
+      'select_active_bike': 'Select your active bike:',
+      'view_details': 'View Details',
 
 
     },
@@ -242,6 +244,9 @@ class AppTranslations extends Translations {
       'err_history_stream': 'تاریخچہ لوڈ نہیں ہو سکا۔ براہ کرم اپنا کنکشن چیک کریں۔',
 
       'err_schedule_stream': 'شیڈول لوڈ نہیں ہو سکا۔ براہ کرم اپنا کنکشن چیک کریں۔',
+
+      'select_active_bike': 'اپنی فعال بائیک منتخب کریں:',
+      'view_details': 'تفصیلات دیکھیں',
 
 
     },

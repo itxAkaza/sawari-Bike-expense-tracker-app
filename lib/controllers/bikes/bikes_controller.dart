@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -47,6 +48,7 @@ class BikeController extends GetxController {
 
   Future<void> saveBike() async {
     final String yearStr = yearController.text.trim();
+    final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     // 1. Validation
     if (nicknameController.text.trim().isEmpty ||
         yearController.text.trim().isEmpty ||
@@ -101,6 +103,7 @@ class BikeController extends GetxController {
 
       // 3. Construct Data Payload based on Schema
       final bikeData = {
+        'userId': uid, // <--- ADD THIS LINE! This links the bike to the user.
         'brand': selectedBrand.value,
         'model': selectedModel.value,
         'nickname': nicknameController.text.trim(),
