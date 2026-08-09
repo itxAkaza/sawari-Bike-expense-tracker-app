@@ -9,13 +9,29 @@ class BikeFirestoreService {
     final user = _auth.currentUser;
     if (user == null) throw Exception("User is not authenticated.");
 
-    // Generate a new document ID automatically
     final docRef = _firestore.collection('bikes').doc();
-
-    // Attach the auto-generated ID and the user's UID to the payload
     bikeData['bikeId'] = docRef.id;
 
-
     await docRef.set(bikeData);
+  }
+
+  /// Adds a new schedule to the active bike
+  Future<void> addSchedule(String bikeId, Map<String, dynamic> data) async {
+    final docRef = _firestore
+        .collection('bikes')
+        .doc(bikeId)
+        .collection('schedules')
+        .doc();
+
+    data['scheduleId'] = docRef.id;
+    await docRef.set(data);
+  }
+
+  // --- NEW UPDATE FUNCTION ---
+  Future<void> updateBike(String bikeId, Map<String, dynamic> bikeData) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("User is not authenticated.");
+
+    await _firestore.collection('bikes').doc(bikeId).update(bikeData);
   }
 }

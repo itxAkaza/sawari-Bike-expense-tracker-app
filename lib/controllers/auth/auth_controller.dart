@@ -6,7 +6,8 @@ import 'package:get/get.dart';
 import '../../Utiles/utiles.dart';
 import '../../data/fireBaseAuthService/firbase_auth_services.dart';
 import '../../resources/route/routes_names.dart';
-import '../../user_prefernce/userPrefrence.dart'; // Make sure this path is correct
+import '../../user_prefernce/userPrefrence.dart';
+import '../more/more_controller.dart'; // Make sure this path is correct
 
 class AuthController extends GetxController {
   final FirebaseAuthService _authService = FirebaseAuthService();
@@ -82,39 +83,39 @@ class AuthController extends GetxController {
   // ==========================================
   // --- REGISTRATION LOGIC ---
   // ==========================================
-  Future<void> register() async {
-    final String name = nameController.text.trim();
-    final String email = emailController.text.trim().toLowerCase();
-    final String password = passwordController.text.trim();
-
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      Utils.toastMesseges('err_empty_fields'.tr);
-      return;
-    }
-
-    if (password.length < 6) {
-      Utils.toastMesseges('err_password_length'.tr);
-      return;
-    }
-
-    try {
-      isRegisterLoading.value = true;
-      final userCredential = await _authService.signupWithEmailPassword(email, password, name);
-
-      // Save data locally instantly after registration
-      await _syncToLocalStorage(userCredential.user!.uid);
-
-      Utils.toastMessegessuccess('success_account_created'.tr);
-      Get.offAllNamed(RoutesNames.homeBottomBarScreen);
-
-    } on FirebaseAuthException catch (e) {
-      _handleAuthError(e);
-    } catch (e) {
-      Utils.toastMesseges('err_default'.tr);
-    } finally {
-      isRegisterLoading.value = false;
-    }
-  }
+  // Future<void> register() async {
+  //   final String name = nameController.text.trim();
+  //   final String email = emailController.text.trim().toLowerCase();
+  //   final String password = passwordController.text.trim();
+  //
+  //   if (name.isEmpty || email.isEmpty || password.isEmpty) {
+  //     Utils.toastMesseges('err_empty_fields'.tr);
+  //     return;
+  //   }
+  //
+  //   if (password.length < 6) {
+  //     Utils.toastMesseges('err_password_length'.tr);
+  //     return;
+  //   }
+  //
+  //   try {
+  //     isRegisterLoading.value = true;
+  //     final userCredential = await _authService.signupWithEmailPassword(email, password, name);
+  //
+  //     // Save data locally instantly after registration
+  //     await _syncToLocalStorage(userCredential.user!.uid);
+  //
+  //     Utils.toastMessegessuccess('success_account_created'.tr);
+  //     Get.offAllNamed(RoutesNames.homeBottomBarScreen);
+  //
+  //   } on FirebaseAuthException catch (e) {
+  //     _handleAuthError(e);
+  //   } catch (e) {
+  //     Utils.toastMesseges('err_default'.tr);
+  //   } finally {
+  //     isRegisterLoading.value = false;
+  //   }
+  // }
 
   // ==========================================
   // --- GUEST LOGIN LOGIC ---
@@ -136,6 +137,61 @@ class AuthController extends GetxController {
       Utils.toastMesseges('err_network'.tr);
     } finally {
       isGuestLoading.value = false;
+    }
+  }
+
+  // ==========================================
+  // --- REGISTRATION LOGIC ---
+  // ==========================================
+  Future<void> register() async {
+    final String name = nameController.text.trim();
+    final String email = emailController.text.trim().toLowerCase();
+    final String password = passwordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      Utils.toastMesseges('err_empty_fields'.tr);
+      return;
+    }
+
+    if (password.length < 6) {
+      Utils.toastMesseges('err_password_length'.tr);
+      return;
+    }
+
+    try {
+      isRegisterLoading.value = true;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      UserCredential userCredential;
+
+      // 1. Check if we are upgrading a Guest OR making a brand new user
+      if (currentUser != null && currentUser.isAnonymous) {
+        // UPGRADE GUEST: Keeps the same UID, so all bikes & data remain!
+        userCredential = await _authService.convertGuestToPermanent(email, password, name);
+      } else {
+        // STANDARD SIGNUP
+        userCredential = await _authService.signupWithEmailPassword(email, password, name);
+      }
+
+      // 2. Save data locally instantly after registration
+      await _syncToLocalStorage(userCredential.user!.uid);
+
+      // 3. If the MoreController is alive, update its UI instantly
+      if (Get.isRegistered<MoreController>()) {
+        final moreCtrl = Get.find<MoreController>();
+        moreCtrl.isGuest.value = false;
+        moreCtrl.userName.value = name;
+        moreCtrl.userEmail.value = email;
+      }
+
+      Utils.toastMessegessuccess('success_account_created'.tr);
+      Get.offAllNamed(RoutesNames.homeBottomBarScreen);
+
+    } on FirebaseAuthException catch (e) {
+      _handleAuthError(e);
+    } catch (e) {
+      Utils.toastMesseges('err_default'.tr);
+    } finally {
+      isRegisterLoading.value = false;
     }
   }
 

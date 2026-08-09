@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
-import '../../../controllers/bikes/bikes_controller.dart';
 
+import '../../../controllers/bikes/bikes_controller.dart';
+// import '../../../controllers/bikes/bikes_controller.dart';
 
 class AddBikeScreen extends StatelessWidget {
   const AddBikeScreen({super.key});
@@ -32,7 +33,11 @@ class AddBikeScreen extends StatelessWidget {
           ),
           onPressed: () => Get.back(),
         ),
-        title: Text('add_your_bike'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
+        // DYNAMIC TITLE
+        title: Obx(() => Text(
+            controller.isEditMode.value ? 'update_your_bike'.tr : 'add_your_bike'.tr,
+            style: const TextStyle(fontWeight: FontWeight.bold)
+        )),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -48,6 +53,8 @@ class AddBikeScreen extends StatelessWidget {
                       onTap: controller.pickImage,
                       child: Obx(() {
                         final File? file = controller.selectedImageFile.value;
+                        final bool hasExistingImage = controller.existingImageUrl != null && controller.existingImageUrl!.isNotEmpty;
+
                         return Container(
                           height: 100,
                           width: 100,
@@ -57,13 +64,15 @@ class AddBikeScreen extends StatelessWidget {
                             border: Border.all(
                                 color: theme.primaryColor.withOpacity(0.5),
                                 width: 2,
-                                style: BorderStyle.solid // Consider dashed package later if needed
+                                style: BorderStyle.solid
                             ),
                             image: file != null
                                 ? DecorationImage(image: FileImage(file), fit: BoxFit.cover)
+                                : hasExistingImage
+                                ? DecorationImage(image: NetworkImage(controller.existingImageUrl!), fit: BoxFit.cover)
                                 : null,
                           ),
-                          child: file == null
+                          child: (file == null && !hasExistingImage)
                               ? Icon(Icons.camera_alt_outlined, color: theme.primaryColor, size: 32)
                               : null,
                         );
@@ -126,8 +135,8 @@ class AddBikeScreen extends StatelessWidget {
                       label: 'year'.tr,
                       hint: '2022',
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Blocks minus signs and decimals
-                      maxLength: 4, // Stops them at 4 digits
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      maxLength: 4,
                       theme: theme,
                     ),
                   ),
@@ -172,8 +181,9 @@ class AddBikeScreen extends StatelessWidget {
                   ),
                   child: controller.isSaving.value
                       ? const CircularProgressIndicator(color: Colors.white)
+                  // DYNAMIC BUTTON TEXT
                       : Text(
-                    'save_bike_chalo'.tr,
+                    controller.isEditMode.value ? 'update_bike_chalo'.tr : 'save_bike_chalo'.tr,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 )),
@@ -217,8 +227,8 @@ class AddBikeScreen extends StatelessWidget {
     required String label,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters, // Added this
-    int? maxLength, // Added this
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
     required ThemeData theme
   }) {
     return Column(
@@ -229,9 +239,9 @@ class AddBikeScreen extends StatelessWidget {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
-          inputFormatters: inputFormatters, // Applied here
-          maxLength: maxLength, // Applied here
-          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null, // Hides the 0/4 counter text
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
+          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: theme.hintColor.withOpacity(0.5)),
@@ -247,5 +257,4 @@ class AddBikeScreen extends StatelessWidget {
       ],
     );
   }
-
 }

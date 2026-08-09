@@ -66,4 +66,28 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+
+  // --- Convert Guest to Permanent User ---
+  Future<UserCredential> convertGuestToPermanent(String email, String password, String name) async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous) {
+      throw Exception("No anonymous user found to convert.");
+    }
+
+    // 1. Create the credential with the new email and password
+    final credential = EmailAuthProvider.credential(email: email, password: password);
+
+    // 2. Link this credential to the existing anonymous UID
+    final userCredential = await user.linkWithCredential(credential);
+
+    // 3. Update their existing Firestore user document
+    await _firestore.collection("users").doc(user.uid).update({
+      "name": name,
+      "email": email,
+      "isGuest": false, // They are no longer a guest!
+    });
+
+    return userCredential;
+  }
+
 }

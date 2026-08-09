@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:sawari/controllers/analytics/analytics_controller.dart';
 
 import '../../Utiles/utiles.dart';
 import '../../data/fireStoreDB/more/moreFireStoreService.dart';
@@ -179,6 +180,7 @@ class MoreController extends GetxController {
     Get.delete<HistoryController>(force: true);
     Get.delete<ScheduleController>(force: true);
     Get.delete<MoreController>(force: true);
+    Get.delete<AnalyticsController>(force: true);
 
     Get.offAllNamed(RoutesNames.loginScreen);
 

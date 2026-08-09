@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../controllers/mainBikeCOntrollre/mainBike_Controllre.dart';
+import '../../controllers/mainBikeControllre/mainBike_Controllre.dart';
 import '../../models/bike_model.dart';
 import '../../resources/assets/image_assets.dart';
 import 'AddBike/addBikeScreen.dart';
 import 'bikeDetail/bikeDetailScreen.dart';
 
-// import '../../controllers/mainBikeCOntrollre/mainBike_Controllre.dart';
-// import '../../resources/assets/image_assets.dart';
-// import 'AddBike/addBikeScreen.dart';
-// import 'bikeDetail/bikeDetailScreen.dart';
-// import 'bike_model.dart';
+
 
 class BikesScreen extends StatelessWidget {
   const BikesScreen({super.key});
@@ -39,20 +35,79 @@ class BikesScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // ==========================================
+        // --- EMPTY STATE UI ---
+        // ==========================================
+        if (controller.bikes.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.two_wheeler,
+                      size: 80,
+                      color: theme.primaryColor.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'empty_garage_title'.tr,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'empty_garage_desc'.tr,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: theme.hintColor, fontSize: 14, height: 1.5),
+                  ),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: () => Get.to(() => const AddBikeScreen()),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'add_first_bike'.tr,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // ==========================================
+        // --- POPULATED LIST UI ---
+        // ==========================================
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top helper text
-              if (controller.bikes.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
-                  child: Text(
-                    'select_active_bike'.tr,
-                    style: TextStyle(color: theme.hintColor, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
+                child: Text(
+                  'select_active_bike'.tr,
+                  style: TextStyle(color: theme.hintColor, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
+              ),
 
               Expanded(
                 child: ListView.builder(
@@ -166,7 +221,7 @@ class _BikeCard extends StatelessWidget {
                       image: DecorationImage(
                         image: bike.imageUrl.isNotEmpty
                             ? NetworkImage(bike.imageUrl) as ImageProvider
-                            : const AssetImage(ImageAssets.bikeCard),
+                            : const AssetImage(ImageAssets.bikeCard), // Ensure this exists
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -205,7 +260,7 @@ class _BikeCard extends StatelessWidget {
                       style: TextStyle(color: theme.primaryColor, fontSize: 10, fontWeight: FontWeight.w900),
                     ),
                   )
-                      : const SizedBox(), // Hidden if not active, user just taps the card
+                      : const SizedBox(),
                 ],
               ),
             ),

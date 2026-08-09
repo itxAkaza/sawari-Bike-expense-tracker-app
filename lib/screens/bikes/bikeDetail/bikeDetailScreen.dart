@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../controllers/bikeDetail/bikedetail_controller.dart';
+import '../../../controllers/history/history_controller.dart';
+
+import '../../../controllers/mainBikeControllre/mainBike_Controllre.dart';
+import '../../../controllers/more/more_controller.dart';
 import '../../../resources/assets/image_assets.dart';
+import '../AddBike/addBikeScreen.dart';
+import 'maintenanceSchedule/maintenanceScheduleScreen.dart';
+import 'milageAnalytics/mileageAnalyticsScreen.dart';
+
+
 
 class BikeDetailScreen extends StatelessWidget {
   const BikeDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Controller is initialized naturally by GetX. No manual onInit() here!
-    final controller = Get.put(DetailController());
+    final mainCtrl = Get.find<MainBikesController>();
+    final moreCtrl = Get.find<MoreController>();
+    final historyCtrl = Get.find<HistoryController>();
+
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -22,36 +32,28 @@ class BikeDetailScreen extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.edit, color: theme.iconTheme.color),
             onPressed: () {
-              // Edit bike functionality placeholder
+              Get.to(() => const AddBikeScreen(), arguments: {
+                'isEdit': true,
+                'bike': mainCtrl.activeBike // Pass the activeBike object directly!
+              });
             },
           )
         ],
       ),
       body: Obx(() {
-        final bike = controller.activeBikeData;
-        final currency = controller.appCurrency.value.split(' ')[0];
+        final bike = mainCtrl.activeBike;
 
-        if (bike.isEmpty) {
+        if (bike == null) {
           return const Center(child: Text("Loading bike details..."));
         }
 
-        // --- SAFELY FIXING FIREBASE NUMBERS TO PREVENT RED SCREEN CRASH ---
-        // Firebase gives ints for whole numbers. 'num' safely handles both int and double.
-        num maintenance = bike['totalMaintenanceSpend'] ?? 0;
-        num repair = bike['totalRepairSpend'] ?? 0;
-        double totalSpent = (maintenance + repair).toDouble();
+        final currency = moreCtrl.currency.value.split(' ')[0];
+        final currentYear = DateTime.now().year;
 
-        num currentOdo = bike['currentOdometer'] ?? 0;
-        num firstOdo = bike['firstOdometer'] ?? 0;
-        double totalDistance = (currentOdo - firstOdo).toDouble();
-
-        num liters = bike['totalLiters'] ?? 0;
-        double kml = 0.0;
-        if (liters > 0) {
-          kml = totalDistance / liters.toDouble();
-        }
-
-        int totalServices = bike['totalServices'] ?? 0;
+        // Clean function calls instead of inline math
+        final spentThisYear = historyCtrl.calculateYearlySpend(currentYear);
+        final serviceCount = historyCtrl.calculateServiceCount();
+        final kml = mainCtrl.calculateKml(bike);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -64,11 +66,9 @@ class BikeDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
                   image: DecorationImage(
-                    image: bike['imageUrl'] != ''
-                        ? NetworkImage(bike['imageUrl']) as ImageProvider
-                        : const AssetImage(ImageAssets.bikeCard),
+                    image: const AssetImage(ImageAssets.profileCard),
                     fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.5), BlendMode.darken),
+                    colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
                   ),
                 ),
                 child: Padding(
@@ -81,11 +81,11 @@ class BikeDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            bike['nickname'],
+                            bike.nickname,
                             style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                           ),
                           Text(
-                            "${bike['brand']} ${bike['model']} - ${bike['year']}",
+                            "${bike.brand} ${bike.model} - ${bike.year}",
                             style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
                           ),
                         ],
@@ -103,7 +103,7 @@ class BikeDetailScreen extends StatelessWidget {
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
                                   Text(
-                                    "${bike['currentOdometer']}",
+                                    "${bike.currentOdometer.toInt()}",
                                     style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
                                   ),
                                   const SizedBox(width: 4),
@@ -119,7 +119,7 @@ class BikeDetailScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              bike['registration'],
+                              bike.registration,
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                             ),
                           ),
@@ -134,11 +134,11 @@ class BikeDetailScreen extends StatelessWidget {
               // --- Analytics Row ---
               Row(
                 children: [
-                  Expanded(child: _buildMetricCard(theme, "$totalSpent $currency", 'spent_in_year'.tr)),
+                  Expanded(child: _buildMetricCard(theme, "$spentThisYear $currency", "spent in $currentYear")),
                   const SizedBox(width: 8),
                   Expanded(child: _buildMetricCard(theme, kml.toStringAsFixed(1), 'kml_average'.tr, isHighlight: true)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildMetricCard(theme, "$totalServices", 'services'.tr)),
+                  Expanded(child: _buildMetricCard(theme, "$serviceCount", 'services'.tr)),
                 ],
               ),
               const SizedBox(height: 24),
@@ -152,22 +152,26 @@ class BikeDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Column(
                   children: [
-                    _buildDetailRow(theme, 'brand'.tr, bike['brand']),
+                    _buildDetailRow(theme, 'brand'.tr, bike.brand),
                     const Divider(height: 1),
-                    _buildDetailRow(theme, 'model'.tr, bike['model']),
+                    _buildDetailRow(theme, 'model'.tr, bike.model),
                     const Divider(height: 1),
-                    _buildDetailRow(theme, 'year'.tr, bike['year']),
+                    _buildDetailRow(theme, 'year'.tr, bike.year),
                     const Divider(height: 1),
-                    _buildDetailRow(theme, 'registration'.tr, bike['registration']),
+                    _buildDetailRow(theme, 'registration'.tr, bike.registration),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
               // --- Action Buttons ---
-              _buildWideButton(theme, 'view_mileage_analytics'.tr, () {}),
+              _buildWideButton(theme, 'view_mileage_analytics'.tr, () {
+                Get.to(MileageAnalyticsScreen());
+              }),
               const SizedBox(height: 12),
-              _buildWideButton(theme, 'maintenance_schedule'.tr, () {}),
+              _buildWideButton(theme, 'maintenance_schedule'.tr, () {
+                Get.to(MaintenanceScheduleScreen());
+              }),
             ],
           ),
         );

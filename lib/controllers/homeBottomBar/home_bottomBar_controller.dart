@@ -8,8 +8,10 @@ import '../../screens/home/homeScreen.dart';
 import '../../screens/more/moreScreen.dart';
 import '../../services/notifiction_service.dart';
 import '../../user_prefernce/userPrefrence.dart';
+import '../analytics/analytics_controller.dart';
 import '../history/history_controller.dart';
-import '../mainBikeCOntrollre/mainBike_Controllre.dart';
+
+import '../mainBikeControllre/mainBike_Controllre.dart';
 import '../more/more_controller.dart';
 import '../schedule/schedule_controller.dart';
 
@@ -28,6 +30,8 @@ class MainHomeViewModel extends GetxController {
     Get.put(MainBikesController(), permanent: true);
     // 3. Inject the Sub-Controllers (These instantly start listening to the Master Hub)
     Get.put(HistoryController(), permanent: true);
+
+    Get.put(AnalyticsController(), permanent: true);
 
     Get.put(ScheduleController(), permanent: true);
     _checkInitialNotificationPermission();

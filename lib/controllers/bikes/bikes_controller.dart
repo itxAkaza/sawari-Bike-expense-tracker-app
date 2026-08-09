@@ -8,8 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../Utiles/utiles.dart';
 import '../../data/fireStoreDB/bikes/bikesFireStoreService.dart';
 import '../../services/cloudinary_services.dart';
-
-
+// import '../../models/bike_model.dart'; // Ensure BikeModel is imported
 
 class BikeController extends GetxController {
   final BikeFirestoreService _firestoreService = BikeFirestoreService();
@@ -27,13 +26,40 @@ class BikeController extends GetxController {
 
   // --- Image State ---
   var selectedImageFile = Rx<File?>(null);
+  String? existingImageUrl; // Stores the image URL if we are editing
+
+  // --- Edit Mode State ---
+  var isEditMode = false.obs;
+  String? editBikeId;
 
   // --- Loading State ---
   var isSaving = false.obs;
 
-  // Predefined lists for UI chips
   final List<String> brands = ['Honda', 'Yamaha', 'Suzuki', 'United', 'Road Prince', 'Other'];
   final List<String> models = ['CD 70', 'CG 125', 'CB 150F', 'YBR 125', 'GS 150'];
+
+  @override
+  void onInit() {
+    super.onInit();
+    _checkForEditData();
+  }
+
+  void _checkForEditData() {
+    if (Get.arguments != null && Get.arguments['isEdit'] == true) {
+      isEditMode.value = true;
+      final bike = Get.arguments['bike']; // Expects BikeModel
+
+      editBikeId = bike.bikeId;
+      existingImageUrl = bike.imageUrl;
+
+      selectedBrand.value = bike.brand;
+      selectedModel.value = bike.model;
+      nicknameController.text = bike.nickname;
+      yearController.text = bike.year;
+      registrationController.text = bike.registration;
+      odometerController.text = bike.currentOdometer.toInt().toString();
+    }
+  }
 
   Future<void> pickImage() async {
     try {
@@ -49,6 +75,7 @@ class BikeController extends GetxController {
   Future<void> saveBike() async {
     final String yearStr = yearController.text.trim();
     final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     // 1. Validation
     if (nicknameController.text.trim().isEmpty ||
         yearController.text.trim().isEmpty ||
@@ -58,16 +85,13 @@ class BikeController extends GetxController {
       return;
     }
 
-
     final int? year = int.tryParse(yearStr);
     final int currentYear = DateTime.now().year;
 
-    // Check if it's a valid number, older than 1900, or from the future
     if (year == null || year < 1900 || year > currentYear + 1) {
       Utils.toastMesseges('err_invalid_year'.tr);
       return;
     }
-
 
     final double? currentOdo = double.tryParse(odometerController.text.trim());
     if (currentOdo == null || currentOdo < 0) {
@@ -77,20 +101,18 @@ class BikeController extends GetxController {
 
     try {
       isSaving.value = true;
-      String? imageUrl;
+      String? finalImageUrl = existingImageUrl;
 
-      // 2. Upload Image with dedicated exception handling
-      // 2. Upload Image with dedicated exception handling
+      // 2. Upload Image
       if (selectedImageFile.value != null) {
         try {
-          imageUrl = await _cloudinaryService.uploadImage(selectedImageFile.value!);
-          if (imageUrl == null) {
+          finalImageUrl = await _cloudinaryService.uploadImage(selectedImageFile.value!);
+          if (finalImageUrl == null) {
             Utils.toastMesseges('err_image_upload_failed'.tr);
             isSaving.value = false;
             return;
           }
         } catch (e) {
-          // Check the exact exception message thrown by CloudinaryService
           if (e.toString().contains("network_error")) {
             Utils.toastMesseges('err_image_upload_network'.tr);
           } else {
@@ -101,28 +123,43 @@ class BikeController extends GetxController {
         }
       }
 
-      // 3. Construct Data Payload based on Schema
-      final bikeData = {
-        'userId': uid, // <--- ADD THIS LINE! This links the bike to the user.
-        'brand': selectedBrand.value,
-        'model': selectedModel.value,
-        'nickname': nicknameController.text.trim(),
-        'year': yearController.text.trim(),
-        'registration': registrationController.text.trim().toUpperCase(),
-        'currentOdometer': currentOdo,
-        'firstOdometer': currentOdo,
-        'imageUrl': imageUrl ?? '',
-        'totalFuelSpend': 0,
-        'totalMaintenanceSpend': 0,
-        'totalRepairSpend': 0,
-        'totalLiters': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
+      // 3. Save or Update logic
+      if (isEditMode.value && editBikeId != null) {
+        // UPDATE EXISTING BIKE
+        // Note: We only update fields they can change. We don't overwrite spend totals.
+        final updateData = {
+          'brand': selectedBrand.value,
+          'model': selectedModel.value,
+          'nickname': nicknameController.text.trim(),
+          'year': yearController.text.trim(),
+          'registration': registrationController.text.trim().toUpperCase(),
+          'currentOdometer': currentOdo,
+          'imageUrl': finalImageUrl ?? '',
+        };
+        await _firestoreService.updateBike(editBikeId!, updateData);
+        Utils.toastMessegessuccess('success_bike_updated'.tr);
+      } else {
+        // ADD NEW BIKE
+        final bikeData = {
+          'userId': uid,
+          'brand': selectedBrand.value,
+          'model': selectedModel.value,
+          'nickname': nicknameController.text.trim(),
+          'year': yearController.text.trim(),
+          'registration': registrationController.text.trim().toUpperCase(),
+          'currentOdometer': currentOdo,
+          'firstOdometer': currentOdo,
+          'imageUrl': finalImageUrl ?? '',
+          'totalFuelSpend': 0,
+          'totalMaintenanceSpend': 0,
+          'totalRepairSpend': 0,
+          'totalLiters': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await _firestoreService.addBike(bikeData);
+        Utils.toastMessegessuccess('success_bike_added'.tr);
+      }
 
-      // 4. Save to Firestore
-      await _firestoreService.addBike(bikeData);
-
-      Utils.toastMessegessuccess('success_bike_added'.tr);
       Get.back(); // Return to previous screen
 
     } on FirebaseException catch (e) {
@@ -134,9 +171,6 @@ class BikeController extends GetxController {
     }
   }
 
-  // ==========================================
-  // --- LOCALIZED ERROR HANDLING MAPPER ---
-  // ==========================================
   void _handleFirestoreError(FirebaseException e) {
     String translationKey;
     switch (e.code) {
@@ -145,7 +179,7 @@ class BikeController extends GetxController {
         break;
       case 'unavailable':
       case 'network-request-failed':
-        translationKey = 'err_network'; // Reusing your existing network error key
+        translationKey = 'err_network';
         break;
       case 'deadline-exceeded':
         translationKey = 'err_timeout';

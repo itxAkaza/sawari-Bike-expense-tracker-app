@@ -4,7 +4,8 @@ import 'package:get/get.dart';
 import '../../Utiles/utiles.dart';
 import '../../data/fireStoreDB/history/historyFireStore.dart';
 import '../../models/history_model.dart';
-import '../mainBikeCOntrollre/mainBike_Controllre.dart';
+import '../mainBikeControllre/mainBike_Controllre.dart';
+
 
 // import 'history_firestore_service.dart';
 // import 'history_log_model.dart';
@@ -13,8 +14,6 @@ import '../mainBikeCOntrollre/mainBike_Controllre.dart';
 
 class HistoryController extends GetxController {
   final HistoryFirestoreService _dbService = HistoryFirestoreService();
-
-  // Inject the Master Controller to watch the active bike
   final MainBikesController _mainController = Get.find<MainBikesController>();
 
   StreamSubscription? _historySubscription;
@@ -27,18 +26,15 @@ class HistoryController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // 1. If a bike is already selected when this controller boots up, load its history
     final initialBikeId = _mainController.selectedBikeId.value;
     if (initialBikeId != null && initialBikeId.isNotEmpty) {
       _listenToHistory(initialBikeId);
     }
 
-    // 2. The GetX Magic: Watch for any future bike switches!
     ever(_mainController.selectedBikeId, (String? newBikeId) {
       if (newBikeId != null && newBikeId.isNotEmpty) {
         _listenToHistory(newBikeId);
       } else {
-        // If the user deleted all their bikes, clear the list and stop listening
         historyLogs.clear();
         _historySubscription?.cancel();
       }
@@ -46,10 +42,7 @@ class HistoryController extends GetxController {
   }
 
   void _listenToHistory(String bikeId) {
-    // CRITICAL: Always cancel the old listener before starting a new one
-    // otherwise the app will try to listen to 2 bikes at the same time!
     _historySubscription?.cancel();
-
     isLoading.value = true;
 
     _historySubscription = _dbService.getBikeHistoryStream(bikeId).listen(
@@ -62,6 +55,30 @@ class HistoryController extends GetxController {
           isLoading.value = false;
         }
     );
+  }
+
+  // --- Calculations ---
+
+  /// Sums up all expenses (fuel, maintenance, repair) for the given year
+  double calculateYearlySpend(int year) {
+    double total = 0.0;
+    for (var log in historyLogs) {
+      if (log.datetime?.year == year) {
+        total += log.amount;
+      }
+    }
+    return total;
+  }
+
+  /// Counts the total number of maintenance and repair logs
+  int calculateServiceCount() {
+    int count = 0;
+    for (var log in historyLogs) {
+      if (log.type == 'maintenance' || log.type == 'repair') {
+        count++;
+      }
+    }
+    return count;
   }
 
   @override

@@ -6,18 +6,17 @@ import '../../Utiles/utiles.dart';
 import '../../data/fireStoreDB/mainBikes/mainBikesFireStore.dart';
 import '../../models/bike_model.dart';
 
+// import 'main_bikes_firestore_service.dart';
+// import 'bike_model.dart';
+// import '../../Utiles/utiles.dart';
 
 class MainBikesController extends GetxController {
   final MainBikesFirestoreService _dbService = MainBikesFirestoreService();
   StreamSubscription? _bikesSubscription;
 
   // --- Global State ---
-  // The single source of truth for all bikes
   final bikes = <BikeModel>[].obs;
-
-  // Only storing the String ID of the active bike
   final selectedBikeId = RxnString();
-
   final isLoading = true.obs;
 
   @override
@@ -26,31 +25,38 @@ class MainBikesController extends GetxController {
     _initBikesStream();
   }
 
+  // --- Helpers & Calculations ---
+
+  /// Dynamically finds and returns the actual BikeModel object based on the selected ID
+  BikeModel? get activeBike {
+    if (selectedBikeId.value == null || bikes.isEmpty) return null;
+
+    try {
+      // Searches the list for the bike that matches the active ID
+      return bikes.firstWhere((b) => b.bikeId == selectedBikeId.value);
+    } catch (e) {
+      return null; // Failsafe if the bike isn't found
+    }
+  }
+
   Future<void> _initBikesStream() async {
     try {
-      // 1. Load the last selected bike ID from local storage
       final prefs = await SharedPreferences.getInstance();
       final savedId = prefs.getString('active_bike_id');
       if (savedId != null && savedId.isNotEmpty) {
         selectedBikeId.value = savedId;
       }
 
-      // 2. Start listening to the mapped Firestore stream
       _bikesSubscription = _dbService.getUserBikesStream().listen(
             (bikeList) {
-          // Update the global list
           bikes.assignAll(bikeList);
 
-          // Auto-select logic:
-          // If no bike is selected, OR the selected bike was deleted from the database
           if (bikeList.isNotEmpty) {
-            bool activeBikeExists = bikeList.any((b) => b!.bikeId == selectedBikeId.value);
-
+            bool activeBikeExists = bikeList.any((b) => b.bikeId == selectedBikeId.value);
             if (!activeBikeExists) {
               setAsActiveBike(bikeList.first.bikeId);
             }
           } else {
-            // No bikes left in the garage
             selectedBikeId.value = null;
             _clearSavedBikeId();
           }
@@ -69,9 +75,9 @@ class MainBikesController extends GetxController {
   }
 
   // --- Actions ---
-
-  /// Called when the user taps a bike card to switch their active bike
   Future<void> setAsActiveBike(String bikeId) async {
+    if (selectedBikeId.value == bikeId) return;
+
     selectedBikeId.value = bikeId;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('active_bike_id', bikeId);
@@ -80,6 +86,17 @@ class MainBikesController extends GetxController {
   Future<void> _clearSavedBikeId() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('active_bike_id');
+  }
+
+
+
+  /// Calculates the lifetime km/l average for a given bike
+  double calculateKml(BikeModel bike) {
+    double distance = bike.currentOdometer - bike.firstOdometer;
+    if (bike.totalLiters > 0) {
+      return distance / bike.totalLiters;
+    }
+    return 0.0;
   }
 
   @override
