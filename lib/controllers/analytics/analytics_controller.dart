@@ -36,9 +36,14 @@ class AnalyticsController extends GetxController {
     super.onInit();
     _calculateAll();
 
-    // Recalculate if history or active bike changes
+    // Recalculate if history logs change (new fuel added, etc.)
     ever(_historyCtrl.historyLogs, (_) => _calculateAll());
+
+    // Recalculate if user manually switches the active bike
     ever(_mainCtrl.selectedBikeId, (_) => _calculateAll());
+
+    // THE FIX: Recalculate when Firebase finishes downloading the bikes list on app boot!
+    ever(_mainCtrl.bikes, (_) => _calculateAll());
   }
 
   void _calculateAll() {

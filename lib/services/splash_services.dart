@@ -1,74 +1,58 @@
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:get/get.dart';
-// import '../screens/onBoarding/intro_screen.dart';
-//
-//
-//
-//
-// class SplashServices {
-//   final userPref = UserPreference();
-//
-//   void checkLoginAndRoute() async {
-//     // Wait half a second so Flutter can finish building the UI
-//     await Future.delayed(const Duration(milliseconds: 500));
-//
-//     User? currentUser = FirebaseAuth.instance.currentUser;
-//
-//     if (currentUser == null) {
-//       // SCENARIO 1: Not logged in (or logged out).
-//       // THE FIX: Do absolutely nothing! Just stay on the Intro Screen.
-//       // (Removing Get.offAll here stops the infinite flashing loop).
-//       return;
-//     } else {
-//       // SCENARIO 2: They are logged in. Let's check SharedPreferences!
-//       String? localRole = await userPref.getUserRole();
-//
-//       if (localRole != null) {
-//         // Route them INSTANTLY
-//         _routeBasedOnRole(localRole);
-//       } else {
-//         try {
-//           DocumentSnapshot doc = await FirebaseFirestore.instance
-//               .collection('users')
-//               .doc(currentUser.uid)
-//               .get();
-//
-//           if (doc.exists) {
-//             String role = doc.get('role');
-//             await userPref.saveUserRole(role);
-//             _routeBasedOnRole(role);
-//           } else {
-//             // Profile missing: Force logout, but don't re-route to avoid loops
-//             await FirebaseAuth.instance.signOut();
-//             await userPref.clearUserData();
-//           }
-//         } catch (e) {
-//           // Error: Force logout, but don't re-route
-//           await FirebaseAuth.instance.signOut();
-//           await userPref.clearUserData();
-//         }
-//       }
-//     }
-//   }
-//
-//   // The Traffic Cop
-//   void _routeBasedOnRole(String role) {
-//     if (role == 'admin') {
-//       Get.offAll(() => AdminDashboard());
-//     } else if (role == 'Lab Engineer') {
-//       Get.offAll(() => LabEnigneerDashboard());
-//     } else if (role == 'Quality Engineer') {
-//       Get.offAll(() => QualityPersondashboard());
-//     } else {
-//       logoutAndGoToIntro(); // Unknown role fallback
-//     }
-//   }
-//
-//   // Use this method anywhere in your app when a user taps "Log Out"
-//   void logoutAndGoToIntro() async {
-//     await FirebaseAuth.instance.signOut();
-//     await userPref.clearUserData(); // Wipe the local role
-//     Get.offAll(() => IntroScreen()); // Send back to intro
-//   }
-// }
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:sawari/resources/route/routes_names.dart';
+import 'package:sawari/services/notifiction_service.dart';
+import 'package:sawari/user_prefernce/userPrefrence.dart';
+
+class SplashServices {
+
+  /// Runs all boot-up checks and returns the initial states for the app
+  static Future<Map<String, dynamic>> initializeAppStates() async {
+    // 1. Read local preferences
+    final prefs = await UserPreference.getUserSettings();
+    final bool notificationsEnabled = prefs['notificationsEnabled'] ?? true;
+
+    // We assume 'isFirstTime' is true if it hasn't been set to false yet
+    final bool isFirstTime = prefs['isFirstTime'] ?? true;
+
+    // 2. Parse Theme
+    ThemeMode initialTheme = ThemeMode.system;
+    if (prefs['theme'] == 'light') initialTheme = ThemeMode.light;
+    if (prefs['theme'] == 'dark') initialTheme = ThemeMode.dark;
+
+    // 3. Parse Language
+    Locale initialLocale = const Locale('en', 'US');
+    if (prefs['language'] == 'ur') initialLocale = const Locale('ur', 'PK');
+
+    // 4. Check Auth & First Time State for Routing
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    String initialRoute;
+
+    if (currentUser != null) {
+      initialRoute = RoutesNames.homeBottomBarScreen;
+    } else if (isFirstTime) {
+      initialRoute = RoutesNames.introScreen;
+    } else {
+      initialRoute = RoutesNames.loginScreen;
+    }
+
+    // 5. Initialize Notifications
+    await NotificationServices().initNotification(notificationsEnabled);
+
+    return {
+      'theme': initialTheme,
+      'locale': initialLocale,
+      'route': initialRoute,
+    };
+  }
+
+
+
+  /// Call this when the user interacts with the IntroScreen to never show it again
+  static Future<void> markIntroAsSeen() async
+  {
+    await UserPreference.setFirstTime(false);
+  }
+
+
+}

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UserPreference {
   static const String _isGuestKey = 'is_guest';
   static const String _userNameKey = 'user_name';
-  static const String _userEmailKey = 'user_email'; // Email Key added
+  static const String _userEmailKey = 'user_email';
   static const String _themeKey = 'app_theme';
   static const String _languageKey = 'app_language';
   static const String _currencyKey = 'app_currency';
@@ -11,12 +11,13 @@ class UserPreference {
   static const String _notificationsKey = 'notifications_enabled';
   static const String _warnDaysKey = 'warn_days';
   static const String _warnKmKey = 'warn_km';
+  static const String _isFirstTimeKey = 'isFirstTime'; // Added a constant for safety
 
   // --- Save Data (Called during AuthController Login/Register) ---
   static Future<void> saveUserSettings({
     required bool isGuest,
     required String userName,
-    required String userEmail, // Email required for saving
+    required String userEmail,
     String theme = 'auto',
     String language = 'en',
     String currency = 'PKR - Rs.',
@@ -28,7 +29,7 @@ class UserPreference {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isGuestKey, isGuest);
     await prefs.setString(_userNameKey, userName);
-    await prefs.setString(_userEmailKey, userEmail); // Email Saved
+    await prefs.setString(_userEmailKey, userEmail);
     await prefs.setString(_themeKey, theme);
     await prefs.setString(_languageKey, language);
     await prefs.setString(_currencyKey, currency);
@@ -57,13 +58,14 @@ class UserPreference {
     if (value is double) await prefs.setDouble(key, value);
   }
 
-  // --- Read Data (Instant Load for Controllers) ---
+  // --- Read Data (Instant Load for Controllers & SplashServices) ---
   static Future<Map<String, dynamic>> getUserSettings() async {
     final prefs = await SharedPreferences.getInstance();
     return {
+      'isFirstTime': prefs.getBool(_isFirstTimeKey) ?? true, // BUG FIXED: Added this to the Map!
       'isGuest': prefs.getBool(_isGuestKey) ?? true,
       'userName': prefs.getString(_userNameKey) ?? 'Guest',
-      'userEmail': prefs.getString(_userEmailKey) ?? '', // Email Read
+      'userEmail': prefs.getString(_userEmailKey) ?? '',
       'theme': prefs.getString(_themeKey) ?? 'auto',
       'language': prefs.getString(_languageKey) ?? 'en',
       'currency': prefs.getString(_currencyKey) ?? 'PKR - Rs.',
@@ -77,6 +79,24 @@ class UserPreference {
   // --- Clear Data on Logout ---
   static Future<void> clearUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+
+    // Save the global app states before wiping memory
+    String theme = prefs.getString(_themeKey) ?? 'system';
+    String lang = prefs.getString(_languageKey) ?? 'en';
+    bool notifications = prefs.getBool(_notificationsKey) ?? true;
+
+    await prefs.clear(); // Wipes EVERYTHING
+
+    // Inject the global states back in, and HARDCODE isFirstTime to false!
+    await prefs.setBool(_isFirstTimeKey, false);
+    await prefs.setString(_themeKey, theme);
+    await prefs.setString(_languageKey, lang);
+    await prefs.setBool(_notificationsKey, notifications);
+  }
+
+  // Called when the user clicks a button on the Intro Screen
+  static Future<void> setFirstTime(bool isFirstTime) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isFirstTimeKey, isFirstTime);
   }
 }
